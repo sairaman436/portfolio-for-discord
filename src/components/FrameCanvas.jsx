@@ -29,8 +29,9 @@ const FrameCanvas = () => {
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d', { alpha: false });
 
-    // Performance optimizations for the canvas context
-    context.imageSmoothingEnabled = false; // Sharper look for anime frames, much faster
+    // Shopify-style high-quality rendering
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'medium';
 
 
     const recalcDrawParams = (img) => {
@@ -149,8 +150,8 @@ const FrameCanvas = () => {
       scrollTrigger: {
         trigger: containerRef.current,
         start: "top top",
-        end: "+=600%",
-        scrub: 0.5, // Reduced from 1 for more responsive "snappy" feel without losing smoothness
+        end: "+=800%", // Longer scroll area for more granularity between frames
+        scrub: 2,    // High scrub value for that silky "liquid" catch-up effect
         pin: true,
 
         anticipatePin: 1,
