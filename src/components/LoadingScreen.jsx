@@ -10,22 +10,23 @@ const LoadingScreen = ({ onComplete }) => {
     const lowResUrls = Array.from({ length: TOTAL_FRAMES }, (_, i) => getLowResFrameUrl(i + 1));
     const highResUrls = Array.from({ length: TOTAL_FRAMES }, (_, i) => getFrameUrl(i + 1));
 
-    // Phase 1: Load ALL low-res frames (extremely fast)
+    // Phase 1: Load low-res frames
     preloadImages(lowResUrls, (p) => {
       setProgress(p);
-    }, TOTAL_FRAMES).then(({ images: lowResImages }) => {
+    }, 100).then(({ images: lowResImages }) => {
+      // We resolve after 100 low-res frames to be even faster, 
+      // the rest of low-res will continue to fill in.
       window.lowResImages = lowResImages;
       
-      // Show site as soon as low-res is ready
       setTimeout(() => {
         setIsVisible(false);
         setTimeout(onComplete, 600);
       }, 500);
 
-      // Phase 2: Load high-res frames in background (no progress bar needed)
-      preloadImages(highResUrls, null, TOTAL_FRAMES).then(({ images: highResImages }) => {
+      // Phase 2: Start high-res stream immediately
+      // Setting earlyResolveCount to 1 so the array becomes available to the canvas right away
+      preloadImages(highResUrls, null, 1).then(({ images: highResImages }) => {
         window.preloadedImages = highResImages;
-        console.log("High-res frames loaded in background.");
       });
     });
   }, [onComplete]);
