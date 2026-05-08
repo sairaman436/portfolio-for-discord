@@ -1,22 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { preloadImages, getFrameUrl, TOTAL_FRAMES } from '../utils/preload';
+import { preloadImages, getFrameUrl, getLowResFrameUrl, TOTAL_FRAMES } from '../utils/preload';
 
 const LoadingScreen = ({ onComplete }) => {
   const [progress, setProgress] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
-    const urls = Array.from({ length: TOTAL_FRAMES }, (_, i) => getFrameUrl(i + 1));
+    const lowResUrls = Array.from({ length: TOTAL_FRAMES }, (_, i) => getLowResFrameUrl(i + 1));
+    const highResUrls = Array.from({ length: TOTAL_FRAMES }, (_, i) => getFrameUrl(i + 1));
 
-    preloadImages(urls, (p, count) => {
+    // Phase 1: Load ALL low-res frames (extremely fast)
+    preloadImages(lowResUrls, (p) => {
       setProgress(p);
-    }, TOTAL_FRAMES).then(({ images }) => {
-      window.preloadedImages = images;
+    }, TOTAL_FRAMES).then(({ images: lowResImages }) => {
+      window.lowResImages = lowResImages;
+      
+      // Show site as soon as low-res is ready
       setTimeout(() => {
         setIsVisible(false);
         setTimeout(onComplete, 600);
-      }, 800);
+      }, 500);
+
+      // Phase 2: Load high-res frames in background (no progress bar needed)
+      preloadImages(highResUrls, null, TOTAL_FRAMES).then(({ images: highResImages }) => {
+        window.preloadedImages = highResImages;
+        console.log("High-res frames loaded in background.");
+      });
     });
   }, [onComplete]);
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { TOTAL_FRAMES } from '../utils/preload';
 import ShinyText from './ShinyText';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -18,10 +19,12 @@ const FrameCanvas = () => {
   const drawParamsRef = useRef({ offsetX: 0, offsetY: 0, drawWidth: 0, drawHeight: 0 });
   const rafIdRef = useRef(null);
   const pendingRenderRef = useRef(null);
+  const lastRenderKeyRef = useRef('');
 
   useEffect(() => {
-    const images = window.preloadedImages;
-    if (!images || images.length === 0) return;
+    // Initial draw to ensure something is visible even before high-res loads
+    const images = window.preloadedImages || window.lowResImages;
+    if (!images) return;
 
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d', { alpha: false });
@@ -69,13 +72,20 @@ const FrameCanvas = () => {
     const frameCount = images.length;
 
     const render = (index, opacity) => {
-      // Skip if nothing changed
-      if (index === lastFrameRef.current && opacity === lastOpacityRef.current) return;
-      lastFrameRef.current = index;
-      lastOpacityRef.current = opacity;
+      // Use high-res if available, fall back to low-res
+      const highResImages = window.preloadedImages;
+      const lowResImages = window.lowResImages;
+      
+      const clampedIndex = Math.max(0, Math.min(index, TOTAL_FRAMES - 1));
+      const img = (highResImages && highResImages[clampedIndex]) || (lowResImages && lowResImages[clampedIndex]);
+      const isHighRes = !!(highResImages && highResImages[clampedIndex]);
 
-      const clampedIndex = Math.max(0, Math.min(index, frameCount - 1));
-      const img = images[clampedIndex];
+      // Skip if nothing changed (including resolution status)
+      const resKey = isHighRes ? 'h' : 'l';
+      const stateKey = `${index}-${opacity}-${resKey}`;
+      if (stateKey === lastRenderKeyRef.current) return;
+      lastRenderKeyRef.current = stateKey;
+
       if (!img) return;
 
       const { offsetX, offsetY, drawWidth, drawHeight } = drawParamsRef.current;
@@ -83,14 +93,17 @@ const FrameCanvas = () => {
       // Clear canvas
       context.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Apply filters via canvas context (GPU-composited, no DOM repaint)
-      const progress = clampedIndex / (frameCount - 1);
+      // Apply filters via canvas context
+      const progress = clampedIndex / (TOTAL_FRAMES - 1);
       const grayscalePercent = Math.max(0, 100 - (progress * 200));
       const contrast = 100 + progress * 15;
+      
+      // Add extra blur if we're using low-res fallback
+      const baseBlur = isHighRes ? 0 : 4;
 
       context.save();
       context.globalAlpha = opacity;
-      context.filter = `grayscale(${grayscalePercent}%) contrast(${contrast}%)`;
+      context.filter = `grayscale(${grayscalePercent}%) contrast(${contrast}%) blur(${baseBlur}px)`;
       context.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
       context.restore();
 
@@ -144,7 +157,7 @@ const FrameCanvas = () => {
 
     // Frame scrubbing — render directly, no extra rAF wrapper
     tl.to(obj, {
-      frame: frameCount - 1,
+      frame: TOTAL_FRAMES - 1,
       opacity: 0.15,
       onUpdate: () => {
         const frameIndex = Math.floor(obj.frame);
