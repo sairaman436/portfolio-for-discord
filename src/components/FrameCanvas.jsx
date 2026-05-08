@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import ShinyText from './ShinyText';
@@ -14,72 +14,105 @@ const FrameCanvas = () => {
   const letterboxTopRef = useRef(null);
   const letterboxBottomRef = useRef(null);
   const lastFrameRef = useRef(-1);
+  const lastOpacityRef = useRef(-1);
   const drawParamsRef = useRef({ offsetX: 0, offsetY: 0, drawWidth: 0, drawHeight: 0 });
+  const rafIdRef = useRef(null);
+  const pendingRenderRef = useRef(null);
 
   useEffect(() => {
     const images = window.preloadedImages;
     if (!images || images.length === 0) return;
 
     const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext('2d', { alpha: false });
+
+    // Disable image smoothing for faster draws
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'low';
+
+    const recalcDrawParams = (img) => {
+      if (!img) return;
+      const canvasRatio = canvas.width / canvas.height;
+      const imgRatio = img.width / img.height;
+      let dw, dh, ox, oy;
+
+      if (canvasRatio > imgRatio) {
+        dw = canvas.width;
+        dh = canvas.width / imgRatio;
+        ox = 0;
+        oy = (canvas.height - dh) / 2;
+      } else {
+        dh = canvas.height;
+        dw = canvas.height * imgRatio;
+        ox = (canvas.width - dw) / 2;
+        oy = 0;
+      }
+      drawParamsRef.current = { offsetX: ox, offsetY: oy, drawWidth: dw, drawHeight: dh };
+    };
 
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
 
-      // Pre-calculate draw dimensions for 'cover' fit
-      const images = window.preloadedImages;
-      if (images && images[0]) {
-        const img = images[0];
-        const canvasRatio = canvas.width / canvas.height;
-        const imgRatio = img.width / img.height;
-        let dw, dh, ox, oy;
-
-        if (canvasRatio > imgRatio) {
-          dw = canvas.width;
-          dh = canvas.width / imgRatio;
-          ox = 0;
-          oy = (canvas.height - dh) / 2;
-        } else {
-          dh = canvas.height;
-          dw = canvas.height * imgRatio;
-          ox = (canvas.width - dw) / 2;
-          oy = 0;
-        }
-        drawParamsRef.current = { offsetX: ox, offsetY: oy, drawWidth: dw, drawHeight: dh };
+      const imgs = window.preloadedImages;
+      if (imgs && imgs[0]) {
+        recalcDrawParams(imgs[0]);
       }
 
-      render(Math.floor(obj.frame), obj.opacity, true);
+      // Force redraw after resize
+      lastFrameRef.current = -1;
+      lastOpacityRef.current = -1;
+      render(Math.floor(obj.frame), obj.opacity);
     };
 
     const obj = { frame: 0, opacity: 1 };
     const frameCount = images.length;
 
-    const render = (index, opacity, force = false) => {
-      if (!force && index === lastFrameRef.current) return;
+    const render = (index, opacity) => {
+      // Skip if nothing changed
+      if (index === lastFrameRef.current && opacity === lastOpacityRef.current) return;
       lastFrameRef.current = index;
+      lastOpacityRef.current = opacity;
 
-      const img = images[index] || images.find((img, i) => i < index && img);
+      const clampedIndex = Math.max(0, Math.min(index, frameCount - 1));
+      const img = images[clampedIndex];
       if (!img) return;
 
+      const { offsetX, offsetY, drawWidth, drawHeight } = drawParamsRef.current;
+
+      // Clear canvas
       context.clearRect(0, 0, canvas.width, canvas.height);
 
-      // CSS Filters are significantly faster than context.filter
-      const progress = index / (frameCount - 1);
+      // Apply filters via canvas context (GPU-composited, no DOM repaint)
+      const progress = clampedIndex / (frameCount - 1);
       const grayscalePercent = Math.max(0, 100 - (progress * 200));
       const contrast = 100 + progress * 15;
-      
-      canvas.style.filter = `grayscale(${grayscalePercent}%) contrast(${contrast}%)`;
-      canvas.style.opacity = opacity;
 
-      // Update scroll counter (DOM update is okay as it's infrequent relative to canvas)
+      context.save();
+      context.globalAlpha = opacity;
+      context.filter = `grayscale(${grayscalePercent}%) contrast(${contrast}%)`;
+      context.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+      context.restore();
+
+      // Update scroll counter
       if (counterRef.current) {
         const pct = Math.round(progress * 100);
         counterRef.current.textContent = `${String(pct).padStart(3, '0')}%`;
       }
+    };
 
-      const { offsetX, offsetY, drawWidth, drawHeight } = drawParamsRef.current;
-      context.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+    // Batched render — coalesces multiple scroll ticks into one paint
+    const scheduleRender = (frameIndex, opacity) => {
+      pendingRenderRef.current = { frameIndex, opacity };
+      if (!rafIdRef.current) {
+        rafIdRef.current = requestAnimationFrame(() => {
+          rafIdRef.current = null;
+          if (pendingRenderRef.current) {
+            render(pendingRenderRef.current.frameIndex, pendingRenderRef.current.opacity);
+            pendingRenderRef.current = null;
+          }
+        });
+      }
     };
 
     window.addEventListener('resize', resize);
@@ -109,13 +142,13 @@ const FrameCanvas = () => {
     tl.to(letterboxTopRef.current, { height: '0%', duration: 1.5, ease: "power2.inOut" }, 0.5);
     tl.to(letterboxBottomRef.current, { height: '0%', duration: 1.5, ease: "power2.inOut" }, 0.5);
 
-    // Frame scrubbing begins after AXZR fades
+    // Frame scrubbing — render directly, no extra rAF wrapper
     tl.to(obj, {
       frame: frameCount - 1,
       opacity: 0.15,
       onUpdate: () => {
         const frameIndex = Math.floor(obj.frame);
-        requestAnimationFrame(() => render(frameIndex, obj.opacity));
+        scheduleRender(frameIndex, obj.opacity);
       },
       duration: 5,
       ease: "none"
@@ -159,6 +192,7 @@ const FrameCanvas = () => {
 
     return () => {
       window.removeEventListener('resize', resize);
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
       ScrollTrigger.getAll().forEach(t => t.kill());
     };
   }, []);
@@ -168,7 +202,7 @@ const FrameCanvas = () => {
       <canvas 
         ref={canvasRef} 
         className="w-full h-full" 
-        style={{ willChange: 'transform, filter, opacity', backfaceVisibility: 'hidden' }} 
+        style={{ willChange: 'contents', backfaceVisibility: 'hidden' }} 
       />
 
       {/* Cinematic Overlays */}

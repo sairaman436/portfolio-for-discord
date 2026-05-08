@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Lenis from 'lenis';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { motion } from 'framer-motion';
 import Navbar from './components/Navbar';
 import LoadingScreen from './components/LoadingScreen';
@@ -13,6 +15,8 @@ import Testimonials from './components/Testimonials';
 import CustomCursor from './components/CustomCursor';
 import Magnetic from './components/Magnetic';
 import { SpeedInsights } from "@vercel/speed-insights/react";
+
+gsap.registerPlugin(ScrollTrigger);
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -30,12 +34,12 @@ function App() {
       infinite: false,
     });
 
-    function raf(time) {
-      lenis.raf(time);
-      requestAnimationFrame(raf);
-    }
-
-    requestAnimationFrame(raf);
+    // Sync Lenis with GSAP ScrollTrigger — single unified tick
+    lenis.on('scroll', ScrollTrigger.update);
+    gsap.ticker.add((time) => {
+      lenis.raf(time * 1000);
+    });
+    gsap.ticker.lagSmoothing(0);
 
     return () => {
       lenis.destroy();
