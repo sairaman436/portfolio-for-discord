@@ -42,9 +42,18 @@ export const preloadImages = (urls, onProgress, earlyResolveCount = 300) => {
       };
 
       img.onload = () => {
-        images[index] = img;
-
-        onDone();
+        if ('decode' in img) {
+          img.decode().then(() => {
+            images[index] = img;
+            onDone();
+          }).catch(() => {
+            images[index] = img;
+            onDone();
+          });
+        } else {
+          images[index] = img;
+          onDone();
+        }
       };
 
       img.onerror = () => {

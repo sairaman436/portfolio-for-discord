@@ -29,9 +29,9 @@ const FrameCanvas = () => {
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d', { alpha: false });
 
-    // Disable image smoothing for faster draws
-    context.imageSmoothingEnabled = true;
-    context.imageSmoothingQuality = 'low';
+    // Performance optimizations for the canvas context
+    context.imageSmoothingEnabled = false; // Sharper look for anime frames, much faster
+
 
     const recalcDrawParams = (img) => {
       if (!img) return;
@@ -101,17 +101,23 @@ const FrameCanvas = () => {
       // Clear canvas
       context.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Apply filters via canvas context
+      // Apply filters only when necessary to save GPU cycles
       const progress = clampedIndex / (TOTAL_FRAMES - 1);
       const grayscalePercent = Math.max(0, 100 - (progress * 200));
       const contrast = 100 + progress * 15;
-      
-      // Add extra blur if we're using low-res fallback
       const baseBlur = isHighRes ? 0 : 4;
 
       context.save();
       context.globalAlpha = opacity;
-      context.filter = `grayscale(${grayscalePercent}%) contrast(${contrast}%) blur(${baseBlur}px)`;
+      
+      // Hardware-accelerated filters can be heavy; only apply if necessary
+      // And use CSS-like shorthand for better performance in some engines
+      if (grayscalePercent > 0 || contrast !== 100 || baseBlur > 0) {
+        context.filter = `grayscale(${Math.round(grayscalePercent)}%) contrast(${Math.round(contrast)}%) blur(${Math.round(baseBlur)}px)`;
+      }
+      
+      // Draw image - since we fill the canvas, we can skip clearRect in most cases
+      // but we keep it simple for now to avoid artifacts on window resize.
       context.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
       context.restore();
 
@@ -144,8 +150,9 @@ const FrameCanvas = () => {
         trigger: containerRef.current,
         start: "top top",
         end: "+=600%",
-        scrub: 1,
+        scrub: 0.5, // Reduced from 1 for more responsive "snappy" feel without losing smoothness
         pin: true,
+
         anticipatePin: 1,
       }
     });
