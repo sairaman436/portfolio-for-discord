@@ -86,8 +86,16 @@ const FrameCanvas = () => {
       if (stateKey === lastRenderKeyRef.current) return;
       lastRenderKeyRef.current = stateKey;
 
-      if (!img) return;
+      if (!img) {
+        if (clampedIndex === 0) console.error("Frame 0 missing!");
+        return;
+      }
 
+      // If draw params haven't been set (e.g. frame 0 wasn't ready during mount), set them now
+      if (drawParamsRef.current.drawWidth === 0) {
+        recalcDrawParams(img);
+      }
+      
       const { offsetX, offsetY, drawWidth, drawHeight } = drawParamsRef.current;
 
       // Clear canvas

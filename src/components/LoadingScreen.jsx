@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { preloadImages, getFrameUrl, getLowResFrameUrl, TOTAL_FRAMES } from '../utils/preload';
+import { preloadImages, getFrameUrl, TOTAL_FRAMES } from '../utils/preload';
 
 const LoadingScreen = ({ onComplete }) => {
   const [progress, setProgress] = useState(0);

@@ -68,9 +68,4 @@ export const getFrameUrl = (index) => {
   return `/frames_881/frame_${pad}.webp`;
 };
 
-export const getLowResFrameUrl = (index) => {
-  const pad = String(index).padStart(5, '0');
-  return `/frames_low/frame_${pad}.webp`;
-};
-
 export const TOTAL_FRAMES = 888;
