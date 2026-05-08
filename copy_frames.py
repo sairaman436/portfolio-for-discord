@@ -11,7 +11,7 @@ total_frames = 4003
 target_frames = 881
 
 for i in range(1, target_frames + 1):
-    src_idx = int(round(1 + (i - 1) * (total_frames - 1) / (target_frames - 1)))
+    src_idx = i
     
     src_name = f"frame_{src_idx:05d}.jpg"
     dst_name = f"frame_{i:05d}.jpg"
