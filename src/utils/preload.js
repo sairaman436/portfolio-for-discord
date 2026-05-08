@@ -11,7 +11,7 @@ export const preloadImages = (urls, onProgress, earlyResolveCount = 300) => {
   const images = new Array(total);
   let loadedCount = 0;
   let earlyResolved = false;
-  const concurrency = 24; // slightly increased for modern browsers
+  const concurrency = 20; // parallel downloads at once
 
   return new Promise((resolve) => {
     let currentIndex = 0;
@@ -24,7 +24,7 @@ export const preloadImages = (urls, onProgress, earlyResolveCount = 300) => {
 
       const onDone = () => {
         loadedCount++;
-        if (onProgress) onProgress(Math.floor((loadedCount / total) * 100), loadedCount);
+        onProgress(Math.floor((loadedCount / total) * 100), loadedCount);
 
         // Early resolve — show site while rest loads in background
         if (!earlyResolved && loadedCount >= earlyResolveCount) {
@@ -43,6 +43,7 @@ export const preloadImages = (urls, onProgress, earlyResolveCount = 300) => {
 
       img.onload = () => {
         images[index] = img;
+
         onDone();
       };
 
@@ -64,12 +65,12 @@ export const preloadImages = (urls, onProgress, earlyResolveCount = 300) => {
 
 export const getFrameUrl = (index) => {
   const pad = String(index).padStart(5, '0');
-  return `/frames_881/frame_${pad}.jpg`;
+  return `/frames_881/frame_${pad}.webp`;
 };
 
 export const getLowResFrameUrl = (index) => {
   const pad = String(index).padStart(5, '0');
-  return `/frames_low/frame_${pad}.jpg`;
+  return `/frames_low/frame_${pad}.webp`;
 };
 
-export const TOTAL_FRAMES = 881;
+export const TOTAL_FRAMES = 888;
