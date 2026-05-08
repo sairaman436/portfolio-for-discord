@@ -7,15 +7,28 @@ const LoadingScreen = ({ onComplete }) => {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
-    const highResUrls = Array.from({ length: TOTAL_FRAMES }, (_, i) => getFrameUrl(i + 1));
+    // Generate original sequential URLs
+    const allUrls = Array.from({ length: TOTAL_FRAMES }, (_, i) => ({
+      url: getFrameUrl(i + 1),
+      index: i
+    }));
+
+    // Reorder for priority:
+    // 1. Key anchor frames (every 20th frame) to get the "skeleton" of the site first
+    // 2. Secondary frames (every 5th frame)
+    // 3. The remaining gaps
+    const priority1 = allUrls.filter(item => item.index % 20 === 0 || item.index === TOTAL_FRAMES - 1);
+    const priority2 = allUrls.filter(item => item.index % 5 === 0 && item.index % 20 !== 0);
+    const remaining = allUrls.filter(item => item.index % 5 !== 0);
+    
+    const reorderedUrls = [...priority1, ...priority2, ...remaining];
+
     window.preloadedImages = new Array(TOTAL_FRAMES);
     
-    Promise.all([
-      preloadImages(highResUrls, (p, count, img, index) => {
-        setProgress(p);
-        if (img) window.preloadedImages[index] = img;
-      }, 50), // Resolve early after 50 high-res frames to show site faster
-    ]).then(() => {
+    preloadImages(reorderedUrls, (p, count, img, index) => {
+      setProgress(p);
+      if (img) window.preloadedImages[index] = img;
+    }, 60).then(() => { // Resolve after 60 key frames are ready
       setTimeout(() => {
         setIsVisible(false);
         setTimeout(onComplete, 600);

@@ -11,7 +11,7 @@ export const preloadImages = (urls, onProgress, earlyResolveCount = 300) => {
   const images = new Array(total);
   let loadedCount = 0;
   let earlyResolved = false;
-  const concurrency = 20; // parallel downloads at once
+  const concurrency = 25; // Slightly increased concurrency for faster initial burst
 
   return new Promise((resolve) => {
     let currentIndex = 0;
@@ -19,52 +19,51 @@ export const preloadImages = (urls, onProgress, earlyResolveCount = 300) => {
     const loadNext = () => {
       if (currentIndex >= total) return;
 
-      const index = currentIndex++;
+      const item = urls[currentIndex++];
+      const url = typeof item === 'string' ? item : item.url;
+      const targetIndex = typeof item === 'string' ? (currentIndex - 1) : item.index;
+      
       const img = new Image();
 
       const onDone = () => {
         loadedCount++;
-        if (onProgress) onProgress(Math.floor((loadedCount / total) * 100), loadedCount, images[index], index);
+        if (onProgress) onProgress(Math.floor((loadedCount / total) * 100), loadedCount, images[targetIndex], targetIndex);
 
-        // Early resolve — show site while rest loads in background
         if (!earlyResolved && loadedCount >= earlyResolveCount) {
           earlyResolved = true;
           resolve({ images, allLoaded: false });
         }
 
-        // All done
         if (loadedCount === total) {
           if (!earlyResolved) resolve({ images, allLoaded: true });
         }
 
-        // Start next download
         loadNext();
       };
 
       img.onload = () => {
         if ('decode' in img) {
           img.decode().then(() => {
-            images[index] = img;
+            images[targetIndex] = img;
             onDone();
           }).catch(() => {
-            images[index] = img;
+            images[targetIndex] = img;
             onDone();
           });
         } else {
-          images[index] = img;
+          images[targetIndex] = img;
           onDone();
         }
       };
 
       img.onerror = () => {
-        console.error(`Failed to load: ${urls[index]}`);
+        console.error(`Failed to load: ${url}`);
         onDone();
       };
 
-      img.src = urls[index];
+      img.src = url;
     };
 
-    // Kick off initial batch
     const initialBatch = Math.min(concurrency, total);
     for (let i = 0; i < initialBatch; i++) {
       loadNext();
