@@ -177,7 +177,7 @@ const LoadingScreen = ({ onComplete }) => {
                 marginBottom: '0.5rem',
               }}>
                 {String(progress).padStart(2, '0')}
-                <span style={{ fontSize: '1.2rem', opacity: 0.5 }}>%</span>
+                <span style={{ fontSize: '1.5rem', opacity: 0.8 }}>%</span>
               </div>
               <p style={{
                 fontSize: '9px',
