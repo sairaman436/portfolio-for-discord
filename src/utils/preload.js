@@ -36,7 +36,7 @@ export const preloadImages = (urls, onProgress, priorityCount = 200) => {
 
 export const getFrameUrl = (index) => {
   const pad = String(index).padStart(5, '0');
-  return `/frames_1778240314947/frame_${pad}.jpg`;
+  return `/frames_881/frame_${pad}.jpg`;
 };
 
 export const TOTAL_FRAMES = 881;
