@@ -7,26 +7,19 @@ const LoadingScreen = ({ onComplete }) => {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
-    const lowResUrls = Array.from({ length: TOTAL_FRAMES }, (_, i) => getLowResFrameUrl(i + 1));
     const highResUrls = Array.from({ length: TOTAL_FRAMES }, (_, i) => getFrameUrl(i + 1));
-
-    // Phase 1: Load low-res frames + the very first high-res frame as priority
-    const firstHighResUrl = [getFrameUrl(1)];
+    window.preloadedImages = new Array(TOTAL_FRAMES);
     
     Promise.all([
-      preloadImages(lowResUrls, (p) => setProgress(p), 100),
-      preloadImages(firstHighResUrl, null, 1)
-    ]).then(([lowResResult, highResResult]) => {
-      window.lowResImages = lowResResult.images;
-      window.preloadedImages = highResResult.images; // This starts the array with at least frame 1
-      
+      preloadImages(highResUrls, (p, count, img, index) => {
+        setProgress(p);
+        if (img) window.preloadedImages[index] = img;
+      }, 50), // Resolve early after 50 high-res frames to show site faster
+    ]).then(() => {
       setTimeout(() => {
         setIsVisible(false);
         setTimeout(onComplete, 600);
       }, 500);
-
-      // Phase 2: Stream the rest of the high-res frames in background
-      preloadImages(highResUrls, null, 1); 
     });
   }, [onComplete]);
 

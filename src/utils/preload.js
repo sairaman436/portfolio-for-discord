@@ -24,7 +24,7 @@ export const preloadImages = (urls, onProgress, earlyResolveCount = 300) => {
 
       const onDone = () => {
         loadedCount++;
-        onProgress(Math.floor((loadedCount / total) * 100), loadedCount);
+        if (onProgress) onProgress(Math.floor((loadedCount / total) * 100), loadedCount, images[index], index);
 
         // Early resolve — show site while rest loads in background
         if (!earlyResolved && loadedCount >= earlyResolveCount) {
