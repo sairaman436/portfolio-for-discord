@@ -57,7 +57,7 @@ const FrameCanvas = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
 
-      const imgs = window.preloadedImages;
+      const imgs = window.preloadedImages || window.lowResImages;
       if (imgs && imgs[0]) {
         recalcDrawParams(imgs[0]);
       }
