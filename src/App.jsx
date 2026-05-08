@@ -12,6 +12,7 @@ import Projects from './components/Projects';
 import Testimonials from './components/Testimonials';
 import CustomCursor from './components/CustomCursor';
 import Magnetic from './components/Magnetic';
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -166,6 +167,7 @@ function App() {
           </footer>
         </>
       )}
+      <SpeedInsights />
     </main>
   );
 }
