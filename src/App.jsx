@@ -15,6 +15,7 @@ import Testimonials from './components/Testimonials';
 import CustomCursor from './components/CustomCursor';
 import Magnetic from './components/Magnetic';
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import AntiScrape from './components/AntiScrape';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -52,6 +53,7 @@ function App() {
 
   return (
     <main className="bg-[#0B0C0E] min-h-screen relative">
+      <AntiScrape />
       <div className="noise-overlay" />
       <CustomCursor />
 

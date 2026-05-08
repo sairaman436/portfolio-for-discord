@@ -38,6 +38,45 @@ body {
   overflow-x: hidden;
   cursor: none;
   /* For elite custom cursor */
+
+  /* Anti-scrape: disable text selection */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Anti-scrape: disable image dragging */
+img, canvas, video, svg {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  pointer-events: none;
+}
+
+/* Anti-scrape: blur page when DevTools detected */
+body.devtools-open > * {
+  filter: blur(12px) !important;
+  pointer-events: none !important;
+  transition: filter 0.3s ease;
+}
+
+body.devtools-open::after {
+  content: '🛡️ Content Protected — DevTools detected.';
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 12, 14, 0.95);
+  color: #5865F2;
+  font-size: 1.2rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  z-index: 99999;
 }
 
 /* Noise Grain Overlay */
