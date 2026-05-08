@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { preloadImages, getFrameUrl, TOTAL_FRAMES } from '../utils/preload';
+import Lottie from 'react-lottie-player';
+import loadingAnimation from '../assets/loading-animation.json';
 
 const LoadingScreen = ({ onComplete }) => {
   const [progress, setProgress] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
+  const [isPreloaded, setIsPreloaded] = useState(false);
+  const readyToExit = useRef(false);
 
   useEffect(() => {
     // Generate original sequential URLs
@@ -13,28 +17,33 @@ const LoadingScreen = ({ onComplete }) => {
       index: i
     }));
 
-    // Reorder for priority:
-    // 1. Key anchor frames (every 20th frame) to get the "skeleton" of the site first
-    // 2. Secondary frames (every 5th frame)
-    // 3. The remaining gaps
     const priority1 = allUrls.filter(item => item.index % 20 === 0 || item.index === TOTAL_FRAMES - 1);
     const priority2 = allUrls.filter(item => item.index % 5 === 0 && item.index % 20 !== 0);
     const remaining = allUrls.filter(item => item.index % 5 !== 0);
     
     const reorderedUrls = [...priority1, ...priority2, ...remaining];
-
     window.preloadedImages = new Array(TOTAL_FRAMES);
     
     preloadImages(reorderedUrls, (p, count, img, index) => {
       setProgress(p);
       if (img) window.preloadedImages[index] = img;
-    }, 60).then(() => { // Resolve after 60 key frames are ready
-      setTimeout(() => {
-        setIsVisible(false);
-        setTimeout(onComplete, 600);
-      }, 500);
+    }, 60).then(() => { 
+      setIsPreloaded(true);
+      readyToExit.current = true;
     });
-  }, [onComplete]);
+  }, []);
+
+  const triggerExit = () => {
+    setIsVisible(false);
+    setTimeout(onComplete, 800);
+  };
+
+  // Handle Lottie loop completion
+  const handleLoopComplete = () => {
+    if (readyToExit.current) {
+      triggerExit();
+    }
+  };
 
   // SVG circular progress
   const radius = 54;
@@ -64,10 +73,10 @@ const LoadingScreen = ({ onComplete }) => {
           {/* Ambient background glow */}
           <div style={{
             position: 'absolute',
-            width: '400px',
-            height: '400px',
+            width: '600px',
+            height: '600px',
             borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(88, 101, 242, 0.08) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, rgba(88, 101, 242, 0.12) 0%, transparent 70%)',
             pointerEvents: 'none',
           }} />
 
@@ -83,67 +92,39 @@ const LoadingScreen = ({ onComplete }) => {
             pointerEvents: 'none',
           }} />
 
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3rem', position: 'relative', zIndex: 1 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2rem', position: 'relative', zIndex: 1 }}>
 
-            {/* Circular Progress + Logo */}
+            {/* Lottie Animation */}
             <motion.div
-              initial={{ scale: 0, opacity: 0 }}
+              initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.8, ease: [0.33, 1, 0.68, 1] }}
-              style={{ position: 'relative', width: '140px', height: '140px' }}
+              transition={{ duration: 1, ease: [0.33, 1, 0.68, 1] }}
+              style={{ position: 'relative', width: '300px', height: '300px' }}
             >
-              {/* Outer rotating ring */}
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                style={{ position: 'absolute', inset: '-8px' }}
-              >
-                <svg width="156" height="156" viewBox="0 0 156 156" style={{ display: 'block' }}>
-                  <circle cx="78" cy="78" r="76" fill="none" stroke="rgba(88, 101, 242, 0.1)" strokeWidth="0.5" strokeDasharray="4 8" />
-                </svg>
-              </motion.div>
-
-              {/* Circular progress track */}
-              <svg width="140" height="140" viewBox="0 0 120 120" style={{ position: 'absolute', top: 0, left: 0, transform: 'rotate(-90deg)' }}>
-                <circle cx="60" cy="60" r={radius} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="1.5" />
+              <Lottie
+                animationData={loadingAnimation}
+                loop={true}
+                play={true}
+                onLoopComplete={handleLoopComplete}
+                style={{ width: '100%', height: '100%' }}
+              />
+              
+              {/* Circular progress track (around the animation) */}
+              <svg width="300" height="300" viewBox="0 0 120 120" style={{ position: 'absolute', top: 0, left: 0, transform: 'rotate(-90deg)', pointerEvents: 'none' }}>
+                <circle cx="60" cy="60" r="58" fill="none" stroke="rgba(255,255,255,0.02)" strokeWidth="0.5" />
                 <motion.circle
-                  cx="60" cy="60" r={radius}
+                  cx="60" cy="60" r="58"
                   fill="none"
                   stroke="#5865F2"
-                  strokeWidth="1.5"
+                  strokeWidth="1"
                   strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  initial={{ strokeDashoffset: circumference }}
-                  animate={{ strokeDashoffset }}
+                  strokeDasharray={2 * Math.PI * 58}
+                  initial={{ strokeDashoffset: 2 * Math.PI * 58 }}
+                  animate={{ strokeDashoffset: 2 * Math.PI * 58 - (progress / 100) * (2 * Math.PI * 58) }}
                   transition={{ duration: 0.3 }}
-                  style={{ filter: 'drop-shadow(0 0 6px rgba(88, 101, 242, 0.6))' }}
+                  style={{ filter: 'drop-shadow(0 0 8px rgba(88, 101, 242, 0.4))' }}
                 />
               </svg>
-
-              {/* Center Logo */}
-              <div style={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                <div style={{
-                  width: '60px',
-                  height: '60px',
-                  background: 'linear-gradient(135deg, #5865F2, #4752C4)',
-                  borderRadius: '0.875rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 0 40px rgba(88, 101, 242, 0.3), inset 0 1px 0 rgba(255,255,255,0.15)',
-                }}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 3L22 20H2L12 3Z" stroke="white" strokeWidth="2" strokeLinejoin="round" fill="none" />
-                    <path d="M12 9L17 18H7L12 9Z" fill="rgba(255,255,255,0.3)" />
-                  </svg>
-                </div>
-              </div>
             </motion.div>
 
             {/* Brand Name + Percentage */}
