@@ -13,6 +13,8 @@ const FrameCanvas = () => {
   const counterRef = useRef(null);
   const letterboxTopRef = useRef(null);
   const letterboxBottomRef = useRef(null);
+  const lastFrameRef = useRef(-1);
+  const drawParamsRef = useRef({ offsetX: 0, offsetY: 0, drawWidth: 0, drawHeight: 0 });
 
   useEffect(() => {
     const images = window.preloadedImages;
@@ -24,54 +26,60 @@ const FrameCanvas = () => {
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-      render(Math.floor(obj.frame), obj.opacity);
+
+      // Pre-calculate draw dimensions for 'cover' fit
+      const images = window.preloadedImages;
+      if (images && images[0]) {
+        const img = images[0];
+        const canvasRatio = canvas.width / canvas.height;
+        const imgRatio = img.width / img.height;
+        let dw, dh, ox, oy;
+
+        if (canvasRatio > imgRatio) {
+          dw = canvas.width;
+          dh = canvas.width / imgRatio;
+          ox = 0;
+          oy = (canvas.height - dh) / 2;
+        } else {
+          dh = canvas.height;
+          dw = canvas.height * imgRatio;
+          ox = (canvas.width - dw) / 2;
+          oy = 0;
+        }
+        drawParamsRef.current = { offsetX: ox, offsetY: oy, drawWidth: dw, drawHeight: dh };
+      }
+
+      render(Math.floor(obj.frame), obj.opacity, true);
     };
 
     const obj = { frame: 0, opacity: 1 };
     const frameCount = images.length;
 
-    const render = (index, opacity) => {
+    const render = (index, opacity, force = false) => {
+      if (!force && index === lastFrameRef.current) return;
+      lastFrameRef.current = index;
+
+      const img = images[index] || images.find((img, i) => i < index && img);
+      if (!img) return;
+
       context.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Dynamic Grayscale: starts B&W, transitions to full color
+      // CSS Filters are significantly faster than context.filter
       const progress = index / (frameCount - 1);
       const grayscalePercent = Math.max(0, 100 - (progress * 200));
-      context.filter = `grayscale(${grayscalePercent}%) contrast(${100 + progress * 15}%)`;
-      context.globalAlpha = opacity;
+      const contrast = 100 + progress * 15;
+      
+      canvas.style.filter = `grayscale(${grayscalePercent}%) contrast(${contrast}%)`;
+      canvas.style.opacity = opacity;
 
-      // Update scroll counter
+      // Update scroll counter (DOM update is okay as it's infrequent relative to canvas)
       if (counterRef.current) {
         const pct = Math.round(progress * 100);
         counterRef.current.textContent = `${String(pct).padStart(3, '0')}%`;
       }
 
-      let img = images[index];
-      if (!img) {
-        for (let i = index; i >= 0; i--) {
-          if (images[i]) { img = images[i]; break; }
-        }
-      }
-
-      if (img) {
-        const canvasRatio = canvas.width / canvas.height;
-        const imgRatio = img.width / img.height;
-        let drawWidth, drawHeight, offsetX, offsetY;
-
-        // Cover logic
-        if (canvasRatio > imgRatio) {
-          drawWidth = canvas.width;
-          drawHeight = canvas.width / imgRatio;
-          offsetX = 0;
-          offsetY = (canvas.height - drawHeight) / 2;
-        } else {
-          drawHeight = canvas.height;
-          drawWidth = canvas.height * imgRatio;
-          offsetX = (canvas.width - drawWidth) / 2;
-          offsetY = 0;
-        }
-
-        context.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
-      }
+      const { offsetX, offsetY, drawWidth, drawHeight } = drawParamsRef.current;
+      context.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
     };
 
     window.addEventListener('resize', resize);
@@ -105,7 +113,10 @@ const FrameCanvas = () => {
     tl.to(obj, {
       frame: frameCount - 1,
       opacity: 0.15,
-      onUpdate: () => render(Math.floor(obj.frame), obj.opacity),
+      onUpdate: () => {
+        const frameIndex = Math.floor(obj.frame);
+        requestAnimationFrame(() => render(frameIndex, obj.opacity));
+      },
       duration: 5,
       ease: "none"
     }, 1);
@@ -154,7 +165,11 @@ const FrameCanvas = () => {
 
   return (
     <div ref={containerRef} className="relative w-full h-screen overflow-hidden bg-[#0B0C0E]">
-      <canvas ref={canvasRef} className="w-full h-full" />
+      <canvas 
+        ref={canvasRef} 
+        className="w-full h-full" 
+        style={{ willChange: 'transform, filter, opacity', backfaceVisibility: 'hidden' }} 
+      />
 
       {/* Cinematic Overlays */}
       <div className="vignette-overlay" />

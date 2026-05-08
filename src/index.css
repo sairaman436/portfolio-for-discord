@@ -43,61 +43,24 @@ body {
 /* Noise Grain Overlay */
 .noise-overlay {
   position: fixed;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   background-image: url('https://grainy-gradients.vercel.app/noise.svg');
   opacity: 0.05;
   pointer-events: none;
   z-index: 9999;
-  animation: noise-move 0.2s infinite;
+  animation: noise-move 0.2s steps(4) infinite;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 @keyframes noise-move {
-  0% {
-    transform: translate(0, 0);
-  }
-
-  10% {
-    transform: translate(-1%, -1%);
-  }
-
-  20% {
-    transform: translate(-2%, 1%);
-  }
-
-  30% {
-    transform: translate(1%, -2%);
-  }
-
-  40% {
-    transform: translate(-1%, 3%);
-  }
-
-  50% {
-    transform: translate(-2%, 1%);
-  }
-
-  60% {
-    transform: translate(3%, 0);
-  }
-
-  70% {
-    transform: translate(0, 2%);
-  }
-
-  80% {
-    transform: translate(-3%, 1%);
-  }
-
-  90% {
-    transform: translate(1%, 3%);
-  }
-
-  100% {
-    transform: translate(1%, 1%);
-  }
+  0% { transform: translate3d(0, 0, 0); }
+  25% { transform: translate3d(-1%, -1%, 0); }
+  50% { transform: translate3d(-2%, 1%, 0); }
+  75% { transform: translate3d(1%, -2%, 0); }
+  100% { transform: translate3d(0, 0, 0); }
 }
 
 h1,
@@ -147,6 +110,7 @@ a:hover {
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  will-change: backdrop-filter;
 }
 
 .text-gradient {
@@ -627,6 +591,7 @@ canvas {
   pointer-events: none;
   z-index: 10;
   transition: transform 0.1s linear;
+  will-change: transform, opacity;
 }
 
 .code-snippet {
@@ -672,6 +637,7 @@ canvas {
   background: #0B0C0E;
   z-index: 5;
   pointer-events: none;
+  will-change: height;
 }
 
 .letterbox-top {
